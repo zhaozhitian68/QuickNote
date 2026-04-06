@@ -1,0 +1,21 @@
+# 用户数据（含 API Key 等敏感信息）
+data.json
+
+# 编译产物
+*.exe
+*.dll
+*.pdb
+*.cache
+bin/
+obj/
+
+# IDE
+.vs/
+*.suo
+*.user
+*.sln.docstates
+
+# OS
+Thumbs.db
+Desktop.ini
+.DS_Store

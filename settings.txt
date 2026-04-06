@@ -1,2 +1,0 @@
-hotkey=2|123
-screenshot=2|122

@@ -22,16 +22,20 @@ namespace QuickNote
         private uint hotkeyVK = 0x7B;              // 默认 F12
         private uint screenshotModifiers = 0x0002; // 默认 Ctrl
         private uint screenshotVK = 0x7A;          // 默认 F11
-        private string settingsFile = "settings.txt";
 
         private TabControl tabControl;
         private TabPage tabNotes;
         private TabPage tabKnowledge;
+        private TabPage tabPort;
+        private TabPage tabCCConfig;
+        private TabPage tabChat;
         private KnowledgePanel knowledgePanel;
+        private PortPanel portPanel;
+        private CCConfigPanel ccConfigPanel;
+        private ChatPanel chatPanel;
 
         private FlowLayoutPanel container;
         private Button btnAddRow;
-        private string dataFile = "notes.txt";
         private ToolTip toolTip;
         private NotifyIcon trayIcon;
 
@@ -128,6 +132,27 @@ namespace QuickNote
             tabKnowledge.Controls.Add(knowledgePanel);
             tabControl.TabPages.Add(tabKnowledge);
 
+            // --- 端口查询 Tab ---
+            tabPort = new TabPage("端口查询");
+            tabPort.BackColor = Color.White;
+            portPanel = new PortPanel();
+            tabPort.Controls.Add(portPanel);
+            tabControl.TabPages.Add(tabPort);
+
+            // --- CC配置 Tab ---
+            tabCCConfig = new TabPage("CC配置");
+            tabCCConfig.BackColor = Color.White;
+            ccConfigPanel = new CCConfigPanel();
+            tabCCConfig.Controls.Add(ccConfigPanel);
+            tabControl.TabPages.Add(tabCCConfig);
+
+            // --- AI对话 Tab ---
+            tabChat = new TabPage("AI对话");
+            tabChat.BackColor = Color.White;
+            chatPanel = new ChatPanel();
+            tabChat.Controls.Add(chatPanel);
+            tabControl.TabPages.Add(tabChat);
+
             this.Controls.Add(tabControl);
 
             LoadData();
@@ -150,45 +175,22 @@ namespace QuickNote
 
         private void LoadHotkeySettings()
         {
-            if (!File.Exists(settingsFile)) return;
+            string hk = AppData.Instance.HotkeyValue;
+            string sc = AppData.Instance.ScreenshotValue;
             uint mod, vk;
-            foreach (string line in File.ReadAllLines(settingsFile))
-            {
-                if (line.StartsWith("hotkey="))
-                {
-                    string[] parts = line.Substring(7).Split('|');
-                    if (parts.Length == 2 &&
-                        uint.TryParse(parts[0], out mod) &&
-                        uint.TryParse(parts[1], out vk) &&
-                        vk != 0)
-                    {
-                        hotkeyModifiers = mod;
-                        hotkeyVK = vk;
-                    }
-                }
-                else if (line.StartsWith("screenshot="))
-                {
-                    string[] parts = line.Substring(11).Split('|');
-                    if (parts.Length == 2 &&
-                        uint.TryParse(parts[0], out mod) &&
-                        uint.TryParse(parts[1], out vk) &&
-                        vk != 0)
-                    {
-                        screenshotModifiers = mod;
-                        screenshotVK = vk;
-                    }
-                }
-            }
+            string[] parts = hk.Split('|');
+            if (parts.Length == 2 && uint.TryParse(parts[0], out mod) && uint.TryParse(parts[1], out vk) && vk != 0)
+            { hotkeyModifiers = mod; hotkeyVK = vk; }
+            parts = sc.Split('|');
+            if (parts.Length == 2 && uint.TryParse(parts[0], out mod) && uint.TryParse(parts[1], out vk) && vk != 0)
+            { screenshotModifiers = mod; screenshotVK = vk; }
         }
 
         private void SaveHotkeySettings()
         {
-            string[] lines = new string[]
-            {
-                "hotkey=" + hotkeyModifiers + "|" + hotkeyVK,
-                "screenshot=" + screenshotModifiers + "|" + screenshotVK
-            };
-            try { File.WriteAllLines(settingsFile, lines); } catch { }
+            AppData.Instance.HotkeyValue = hotkeyModifiers + "|" + hotkeyVK;
+            AppData.Instance.ScreenshotValue = screenshotModifiers + "|" + screenshotVK;
+            AppData.Instance.Save();
         }
 
         private void OpenHotkeySettings(bool isScreenshot)
@@ -380,41 +382,30 @@ namespace QuickNote
 
         private void LoadData()
         {
-            if (File.Exists(dataFile))
+            foreach (string line in AppData.Instance.Notes)
             {
-                string[] lines = File.ReadAllLines(dataFile);
-                foreach (string line in lines)
-                {
-                    if (!string.IsNullOrWhiteSpace(line))
-                    {
-                        string content = line.Replace("{{NEWLINE}}", "\r\n");
-                        AddBlock(content);
-                    }
-                }
+                if (!string.IsNullOrWhiteSpace(line))
+                    AddBlock(line.Replace("{{NEWLINE}}", "\r\n"));
             }
         }
 
         private void SaveData()
         {
-            List<string> lines = new List<string>();
+            AppData.Instance.Notes.Clear();
             foreach (Control block in container.Controls)
             {
                 foreach (Control c in block.Controls)
                 {
-                    // block -> borderPanel -> Tag(TextBox)
                     Panel borderPanel = c as Panel;
                     if (borderPanel != null && borderPanel.Tag is TextBox)
                     {
                         TextBox tb = borderPanel.Tag as TextBox;
                         if (tb != null && !string.IsNullOrWhiteSpace(tb.Text))
-                        {
-                            string content = tb.Text.Replace("\r\n", "{{NEWLINE}}").Replace("\n", "{{NEWLINE}}");
-                            lines.Add(content);
-                        }
+                            AppData.Instance.Notes.Add(tb.Text.Replace("\r\n", "{{NEWLINE}}").Replace("\n", "{{NEWLINE}}"));
                     }
                 }
             }
-            try { File.WriteAllLines(dataFile, lines.ToArray()); } catch {}
+            AppData.Instance.Save();
         }
 
         private void AddBlock(string initialText = "")
